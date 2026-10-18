@@ -1,0 +1,143 @@
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Policy & Users & Size & Latency (ms) & Migrations & Fog energy \\
+\midrule
+Always migrate & 1 & 10000 & 56.8 & 82 & 863597 \\
+Always migrate & 1 & 50000 & 142.0 & 82 & 815789 \\
+Always migrate & 1 & 100000 & 253.7 & 82 & 788759 \\
+Always migrate & 1 & 200000 & 329.7 & 82 & 712389 \\
+Always migrate & 3 & 10000 & 60.5 & 162 & 1566010 \\
+Always migrate & 3 & 50000 & 139.9 & 162 & 1483889 \\
+Always migrate & 3 & 100000 & 200.3 & 162 & 1423271 \\
+Always migrate & 3 & 200000 & 266.9 & 162 & 1319311 \\
+Always migrate & 3 & 400000 & 278.9 & 162 & 1272120 \\
+Always migrate & 3 & 800000 & 323.5 & 162 & 1121927 \\
+Always migrate & 6 & 10000 & 160.3 & 171 & 1615396 \\
+Always migrate & 6 & 50000 & 219.8 & 171 & 1509810 \\
+Always migrate & 6 & 100000 & 266.3 & 171 & 1414314 \\
+Always migrate & 6 & 200000 & 302.8 & 171 & 1286168 \\
+Always migrate & 6 & 400000 & 320.3 & 171 & 1222299 \\
+Always migrate & 6 & 800000 & 342.6 & 171 & 1096718 \\
+Always migrate & 10 & 10000 & 212.9 & 177 & 1680549 \\
+Always migrate & 10 & 50000 & 252.1 & 177 & 1584359 \\
+Always migrate & 10 & 100000 & 278.0 & 177 & 1518206 \\
+Always migrate & 10 & 200000 & 305.5 & 177 & 1394001 \\
+Always migrate & 10 & 400000 & 276.4 & 177 & 1303499 \\
+Always migrate & 10 & 800000 & 288.0 & 177 & 1189808 \\
+Cost-tuned (hand-tuned) & 1 & 10000 & 58.1 & 44 & 522235 \\
+Cost-tuned (hand-tuned) & 1 & 50000 & 89.8 & 44 & 510272 \\
+Cost-tuned (hand-tuned) & 1 & 100000 & 117.7 & 44 & 513219 \\
+Cost-tuned (hand-tuned) & 1 & 200000 & 153.3 & 44 & 498047 \\
+Cost-tuned (hand-tuned) & 3 & 10000 & 60.2 & 129 & 1119086 \\
+Cost-tuned (hand-tuned) & 3 & 50000 & 89.1 & 118 & 977711 \\
+Cost-tuned (hand-tuned) & 3 & 100000 & 116.1 & 118 & 969321 \\
+Cost-tuned (hand-tuned) & 3 & 200000 & 145.7 & 118 & 946320 \\
+Cost-tuned (hand-tuned) & 3 & 400000 & 484.8 & 4 & 156777 \\
+Cost-tuned (hand-tuned) & 3 & 800000 & 484.6 & 0 & 81389 \\
+Cost-tuned (hand-tuned) & 6 & 10000 & 88.8 & 314 & 1352164 \\
+Cost-tuned (hand-tuned) & 6 & 50000 & 119.4 & 292 & 1201814 \\
+Cost-tuned (hand-tuned) & 6 & 100000 & 145.6 & 292 & 1192015 \\
+Cost-tuned (hand-tuned) & 6 & 200000 & 169.6 & 292 & 1156128 \\
+Cost-tuned (hand-tuned) & 6 & 400000 & 492.0 & 10 & 148884 \\
+Cost-tuned (hand-tuned) & 6 & 800000 & 498.5 & 0 & 52104 \\
+Cost-tuned (hand-tuned) & 10 & 10000 & 117.5 & 529 & 1595788 \\
+Cost-tuned (hand-tuned) & 10 & 50000 & 147.9 & 486 & 1393210 \\
+Cost-tuned (hand-tuned) & 10 & 100000 & 164.9 & 486 & 1388484 \\
+Cost-tuned (hand-tuned) & 10 & 200000 & 158.7 & 486 & 1347168 \\
+Cost-tuned (hand-tuned) & 10 & 400000 & 487.2 & 18 & 217419 \\
+Cost-tuned (hand-tuned) & 10 & 800000 & 499.7 & 0 & 74372 \\
+mofco & 1 & 10000 & 92.2 & 35 & 465056 \\
+mofco & 1 & 50000 & 506.3 & 0 & 14180 \\
+mofco & 1 & 100000 & 502.1 & 0 & 14151 \\
+mofco & 1 & 200000 & 500.4 & 0 & 14378 \\
+mofco & 3 & 10000 & 73.7 & 108 & 1031796 \\
+mofco & 3 & 50000 & 464.2 & 4 & 163915 \\
+mofco & 3 & 100000 & 487.4 & 0 & 78569 \\
+mofco & 3 & 200000 & 490.0 & 0 & 79257 \\
+mofco & 3 & 400000 & 485.8 & 0 & 83046 \\
+mofco & 3 & 800000 & 483.3 & 0 & 81204 \\
+mofco & 6 & 10000 & 104.2 & 246 & 1295778 \\
+mofco & 6 & 50000 & 489.2 & 10 & 173003 \\
+mofco & 6 & 100000 & 442.1 & 0 & 50525 \\
+mofco & 6 & 200000 & 447.7 & 0 & 52752 \\
+mofco & 6 & 400000 & 501.2 & 0 & 50899 \\
+mofco & 6 & 800000 & 496.5 & 0 & 53295 \\
+mofco & 10 & 10000 & 126.6 & 425 & 1510682 \\
+mofco & 10 & 50000 & 463.0 & 20 & 232366 \\
+mofco & 10 & 100000 & 366.2 & 2 & 73001 \\
+mofco & 10 & 200000 & 366.1 & 2 & 74884 \\
+mofco & 10 & 400000 & 502.1 & 2 & 84977 \\
+mofco & 10 & 800000 & 499.5 & 0 & 71484 \\
+Never migrate & 1 & 10000 & 500.0 & 0 & 14335 \\
+Never migrate & 1 & 50000 & 501.2 & 0 & 14281 \\
+Never migrate & 1 & 100000 & 497.6 & 0 & 14346 \\
+Never migrate & 1 & 200000 & 498.6 & 0 & 14329 \\
+Never migrate & 3 & 10000 & 490.4 & 0 & 80131 \\
+Never migrate & 3 & 50000 & 486.7 & 0 & 79441 \\
+Never migrate & 3 & 100000 & 488.3 & 0 & 79748 \\
+Never migrate & 3 & 200000 & 487.2 & 0 & 79730 \\
+Never migrate & 3 & 400000 & 483.9 & 0 & 81556 \\
+Never migrate & 3 & 800000 & 481.3 & 0 & 81793 \\
+Never migrate & 6 & 10000 & 442.0 & 0 & 50984 \\
+Never migrate & 6 & 50000 & 445.3 & 0 & 53516 \\
+Never migrate & 6 & 100000 & 442.3 & 0 & 51542 \\
+Never migrate & 6 & 200000 & 443.7 & 0 & 54756 \\
+Never migrate & 6 & 400000 & 497.7 & 0 & 51794 \\
+Never migrate & 6 & 800000 & 498.9 & 0 & 56258 \\
+Never migrate & 10 & 10000 & 387.3 & 0 & 74719 \\
+Never migrate & 10 & 50000 & 389.3 & 0 & 72447 \\
+Never migrate & 10 & 100000 & 387.8 & 0 & 73859 \\
+Never migrate & 10 & 200000 & 390.2 & 0 & 74677 \\
+Never migrate & 10 & 400000 & 498.3 & 0 & 75091 \\
+Never migrate & 10 & 800000 & 499.8 & 0 & 75463 \\
+Learned (proposed) & 1 & 10000 & 71.3 & 44 & 297727 \\
+Learned (proposed) & 1 & 50000 & 100.4 & 44 & 288808 \\
+Learned (proposed) & 1 & 100000 & 133.4 & 44 & 278819 \\
+Learned (proposed) & 1 & 200000 & 161.3 & 44 & 273447 \\
+Learned (proposed) & 3 & 10000 & 72.7 & 118 & 476493 \\
+Learned (proposed) & 3 & 50000 & 100.6 & 118 & 490333 \\
+Learned (proposed) & 3 & 100000 & 121.3 & 118 & 517536 \\
+Learned (proposed) & 3 & 200000 & 150.6 & 118 & 555171 \\
+Learned (proposed) & 3 & 400000 & 482.2 & 4 & 156333 \\
+Learned (proposed) & 3 & 800000 & 480.3 & 0 & 79852 \\
+Learned (proposed) & 6 & 10000 & 119.0 & 292 & 467567 \\
+Learned (proposed) & 6 & 50000 & 142.3 & 292 & 518976 \\
+Learned (proposed) & 6 & 100000 & 165.6 & 292 & 559376 \\
+Learned (proposed) & 6 & 200000 & 180.8 & 292 & 625361 \\
+Learned (proposed) & 6 & 400000 & 489.7 & 10 & 149043 \\
+Learned (proposed) & 6 & 800000 & 497.1 & 0 & 53983 \\
+Learned (proposed) & 10 & 10000 & 199.4 & 486 & 542487 \\
+Learned (proposed) & 10 & 50000 & 219.6 & 486 & 633170 \\
+Learned (proposed) & 10 & 100000 & 243.5 & 486 & 740457 \\
+Learned (proposed) & 10 & 200000 & 178.4 & 486 & 831733 \\
+Learned (proposed) & 10 & 400000 & 487.7 & 18 & 215663 \\
+Learned (proposed) & 10 & 800000 & 499.9 & 0 & 73683 \\
+Learned (no resource state) & 1 & 10000 & 54.2 & 44 & 523870 \\
+Learned (no resource state) & 1 & 50000 & 94.7 & 44 & 515304 \\
+Learned (no resource state) & 1 & 100000 & 119.7 & 44 & 509902 \\
+Learned (no resource state) & 1 & 200000 & 145.1 & 44 & 501866 \\
+Learned (no resource state) & 3 & 10000 & 63.9 & 118 & 1000506 \\
+Learned (no resource state) & 3 & 50000 & 94.5 & 118 & 971256 \\
+Learned (no resource state) & 3 & 100000 & 115.5 & 118 & 962553 \\
+Learned (no resource state) & 3 & 200000 & 144.4 & 118 & 948856 \\
+Learned (no resource state) & 3 & 400000 & 484.1 & 4 & 160811 \\
+Learned (no resource state) & 3 & 800000 & 482.0 & 0 & 85170 \\
+Learned (no resource state) & 6 & 10000 & 89.6 & 292 & 1240961 \\
+Learned (no resource state) & 6 & 50000 & 120.1 & 292 & 1204095 \\
+Learned (no resource state) & 6 & 100000 & 145.8 & 292 & 1189535 \\
+Learned (no resource state) & 6 & 200000 & 171.6 & 292 & 1159966 \\
+Learned (no resource state) & 6 & 400000 & 491.1 & 10 & 148937 \\
+Learned (no resource state) & 6 & 800000 & 497.8 & 0 & 51555 \\
+Learned (no resource state) & 10 & 10000 & 113.6 & 486 & 1434627 \\
+Learned (no resource state) & 10 & 50000 & 149.7 & 486 & 1396007 \\
+Learned (no resource state) & 10 & 100000 & 163.9 & 486 & 1383886 \\
+Learned (no resource state) & 10 & 200000 & 157.2 & 486 & 1348190 \\
+Learned (no resource state) & 10 & 400000 & 487.5 & 18 & 214760 \\
+Learned (no resource state) & 10 & 800000 & 502.8 & 0 & 73790 \\
+\bottomrule
+\end{tabular}
+\caption{Mean results across repetitions for each policy and configuration.}
+\label{tab:results}
+\end{table}

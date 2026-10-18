@@ -31,6 +31,13 @@ public class MicroservicesMobilityClusteringController extends MicroservicesCont
     private LocationHandler locator;
     private Map<Integer, Integer> parentReference;
 
+    // ---- migration policy hook (research extension) ----
+    private static MigrationPolicy migrationPolicy = new MigrationPolicy.Always(); // default = original iFogSim2 behaviour
+    public static int migrationsPerformed = 0, migrationsSkipped = 0;
+    public static long decisionNanos = 0;
+
+    public static void setMigrationPolicy(MigrationPolicy p) { migrationPolicy = p; }
+
 
     protected Map<Integer, Map<String, PlacementRequest>> perClientDevicePrs = new HashMap<>();  // clientDevice -> <Application -> PR>
 
@@ -101,6 +108,12 @@ public class MicroservicesMobilityClusteringController extends MicroservicesCont
                 printCostDetails();
                 printNetworkUsageDetails();
                 printMigrationDelayDetails();
+                System.out.println("POLICY = " + migrationPolicy.name());
+                System.out.println("Migrations performed = " + migrationsPerformed);
+                System.out.println("Migrations skipped = " + migrationsSkipped);
+                System.out.println("Decision runtime (ms) = " + decisionNanos / 1e6);
+                if (migrationPolicy instanceof QLearningMigrationPolicy)
+                    ((QLearningMigrationPolicy) migrationPolicy).save();
                 System.exit(0);
                 break;
             default:
@@ -191,14 +204,30 @@ public class MicroservicesMobilityClusteringController extends MicroservicesCont
 
             for (String applicationName : fogDevice.getActiveApplications()) {
 
-                migratingModules = getModulesToMigrate(fogDevice, commonAncestor, applicationName);
+                Map<String, Integer> candidates = migrationPolicy.reconsiderLeftBehind()
+                        ? getAllMovableModules(fogDevice, newParent, applicationName)
+                        : getModulesToMigrate(fogDevice, commonAncestor, applicationName);
+                migratingModules = filterByPolicy(fogDevice, newParent, applicationName, candidates);
                 HashMap<String, Double> upDelays = new HashMap<>(); // per migrating module
                 HashMap<String, Double> downDelays = new HashMap<>(); // per migrating module
 
+                // Destination selection: which node the migrating modules actually go to. Defaults to
+                // newParent (original iFogSim2 behaviour, unchanged for the always/never/cost policies).
+                // For the learned policy, a cluster-scoped destination search additionally considers
+                // newParent's cluster peers and picks whichever the agent's learned values rate best,
+                // summed over the modules already decided (above) to migrate.
+                FogDevice destination = newParent;
+                if (migrationPolicy instanceof QLearningMigrationPolicy && !migratingModules.isEmpty())
+                    destination = chooseDestination((QLearningMigrationPolicy) migrationPolicy, migratingModules,
+                            newParent, applicationName);
+
                 for (String moduleName : migratingModules.keySet()) {
 
-                    double upDelay = getUpDelay(migratingModules.get(moduleName), commonAncestor, applications.get(applicationName).getModuleByName(moduleName));
-                    double downDelay = getDownDelay(newParent.getId(), commonAncestor, applications.get(applicationName).getModuleByName(moduleName));
+                    int moduleAncestor = ancestorFor(migratingModules.get(moduleName), newParent.getId());
+                    double upDelay = getUpDelay(migratingModules.get(moduleName), moduleAncestor, applications.get(applicationName).getModuleByName(moduleName));
+                    double downDelay = getDownDelay(newParent.getId(), moduleAncestor, applications.get(applicationName).getModuleByName(moduleName));
+                    if (destination.getId() != newParent.getId())
+                        downDelay += clusterHopDelay(newParent, destination, applications.get(applicationName).getModuleByName(moduleName));
                     upDelays.put(moduleName, upDelay);
                     downDelays.put(moduleName, downDelay);
                     JSONObject jsonSend = new JSONObject();
@@ -211,14 +240,17 @@ public class MicroservicesMobilityClusteringController extends MicroservicesCont
                     jsonReceive.put("application", applications.get(applicationName));
 
                     send(migratingModules.get(moduleName), upDelay, FogEvents.MODULE_SEND, jsonSend);
-                    send(newParent.getId(), downDelay, FogEvents.MODULE_RECEIVE, jsonReceive);
-                    System.out.println("Migrating " + moduleName + " from " + prevParent.getName() + " to " + newParent.getName());
+                    send(destination.getId(), downDelay, FogEvents.MODULE_RECEIVE, jsonReceive);
+                    if (destination.getId() == newParent.getId())
+                        System.out.println("Migrating " + moduleName + " from " + prevParent.getName() + " to " + newParent.getName());
+                    else
+                        System.out.println("Migrating " + moduleName + " from " + prevParent.getName() + " to " + destination.getName() + " (cluster peer of " + newParent.getName() + ")");
                 }
 
-                serviceDiscoveryUpdate(fogDevice, migratingModules, applicationName, newParent.getId(), upDelays, downDelays);
+                serviceDiscoveryUpdate(fogDevice, migratingModules, applicationName, destination.getId(), upDelays, downDelays);
                 for (String moduleName : migratingModules.keySet()) {
-                    //because modules are moved to next parent
-                    perClientDevicePrs.get(fogDevice.getId()).get(applicationName).getPlacedMicroservices().put(moduleName, newParent.getId());
+                    //because modules are moved to the chosen destination (newParent, or one of its cluster peers)
+                    perClientDevicePrs.get(fogDevice.getId()).get(applicationName).getPlacedMicroservices().put(moduleName, destination.getId());
                 }
             }
 
@@ -229,6 +261,161 @@ public class MicroservicesMobilityClusteringController extends MicroservicesCont
 
         updateRoutingTable(fogDevice);
 
+    }
+
+    private Map<String, Integer> filterByPolicy(FogDevice mobile, FogDevice newParent,
+                                                String applicationName, Map<String, Integer> candidates) {
+        long t0 = System.nanoTime();
+        Map<String, Integer> chosen = new HashMap<>();
+        for (Map.Entry<String, Integer> e : candidates.entrySet()) {
+            AppModule module = applications.get(applicationName).getModuleByName(e.getKey());
+            MigrationPolicy.Context c = new MigrationPolicy.Context();
+            c.mobileName = mobile.getName();
+            c.application = applicationName;
+            c.module = e.getKey();
+            c.fromDeviceId = e.getValue();
+            c.toDeviceId = newParent.getId();
+            c.moduleSize = module.getSize();
+            c.predictedSojournTime = predictSojournTime(mobile);
+            int moduleAncestor = ancestorFor(e.getValue(), newParent.getId());
+            c.stayLatency = pathLatency(newParent.getId(), moduleAncestor) + pathLatency(e.getValue(), moduleAncestor);
+            c.migrationDelay = getUpDelay(e.getValue(), moduleAncestor, module) + getDownDelay(newParent.getId(), moduleAncestor, module);
+            double extraPower = newParent.getHost().getPowerModel().getPower(1.0) - newParent.getHost().getPowerModel().getPower(0.0);
+            c.migrationEnergy = extraPower * c.migrationDelay;
+            boolean decision;
+            if (migrationPolicy instanceof QLearningMigrationPolicy)
+                decision = ((QLearningMigrationPolicy) migrationPolicy)
+                        .shouldMigrate(c, QLearningMigrationPolicy.resourceAvailability(newParent));
+            else
+                decision = migrationPolicy.shouldMigrate(c);
+            if (decision) {
+                chosen.put(e.getKey(), e.getValue());
+                migrationsPerformed++;
+            } else
+                migrationsSkipped++;
+        }
+        decisionNanos += System.nanoTime() - t0;
+        return chosen;
+    }
+
+    /**
+     * Cluster-scoped destination search (learned policy only). Candidates are newParent itself plus
+     * its cluster peers (FogDevice.getClusterMembers(), populated by iFogSim2's dynamic clustering).
+     * Each candidate is scored by summing the agent's learned migrateScore over every module already
+     * decided (by filterByPolicy) to migrate, using that candidate as the destination; the candidate
+     * with the highest total is chosen. Falls back to newParent if no cluster peers are available or
+     * a candidate's data cannot be read, so a lookup problem degrades to the original behaviour
+     * instead of failing the run.
+     */
+    private FogDevice chooseDestination(QLearningMigrationPolicy qp, Map<String, Integer> migratingModules,
+                                        FogDevice newParent, String applicationName) {
+        List<FogDevice> candidates = new ArrayList<>();
+        candidates.add(newParent);
+        try {
+            for (int peerId : newParent.getClusterMembers()) {
+                FogDevice peer = getFogDeviceById(peerId);
+                if (peer != null) candidates.add(peer);
+            }
+        } catch (Exception ignored) {
+            // no cluster data available for this node; candidates stays as [newParent]
+        }
+        if (candidates.size() == 1) return newParent;
+
+        FogDevice best = newParent;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        for (FogDevice dest : candidates) {
+            double total = 0;
+            try {
+                for (Map.Entry<String, Integer> e : migratingModules.entrySet()) {
+                    AppModule module = applications.get(applicationName).getModuleByName(e.getKey());
+                    int moduleAncestor = ancestorFor(e.getValue(), newParent.getId());
+                    MigrationPolicy.Context c = new MigrationPolicy.Context();
+                    c.moduleSize = module.getSize();
+                    c.stayLatency = pathLatency(newParent.getId(), moduleAncestor) + pathLatency(e.getValue(), moduleAncestor);
+                    c.migrationDelay = getUpDelay(e.getValue(), moduleAncestor, module) + getDownDelay(newParent.getId(), moduleAncestor, module);
+                    if (dest.getId() != newParent.getId())
+                        c.migrationDelay += clusterHopDelay(newParent, dest, module);
+                    total += qp.migrateScore(c, QLearningMigrationPolicy.resourceAvailability(dest));
+                }
+            } catch (Exception ignored) {
+                continue; // skip a candidate we could not score rather than let it crash the run
+            }
+            if (total > bestScore) {
+                bestScore = total;
+                best = dest;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Extra one-hop transfer time to reach a cluster peer of newParent, beyond the delay already
+     * costed to reach newParent itself. Approximated as module size over the smaller of the two
+     * nodes' link bandwidths (no separate cluster-link bandwidth is modelled in iFogSim2); documented
+     * as an approximation in the accompanying write-up.
+     */
+    private double clusterHopDelay(FogDevice newParent, FogDevice peer, AppModule module) {
+        double bw = Math.min(newParent.getUplinkBandwidth(), peer.getDownlinkBandwidth());
+        return bw > 0 ? module.getSize() / bw : 0.0;
+    }
+
+    /**
+     * Time until this mobile's next scheduled handoff, read directly from iFogSim2's precomputed
+     * mobility trace (LocationHandler.getTimeSheet), i.e. the simulator's own ground truth rather
+     * than a kinematic estimate. Returns 0 if no future handoff is scheduled (end of trace).
+     */
+    private double predictSojournTime(FogDevice mobile) {
+        try {
+            for (double t : locator.getTimeSheet(mobile.getId()))
+                if (t > CloudSim.clock())
+                    return t - CloudSim.clock();
+        } catch (Exception ignored) { /* no mobility data for this device */ }
+        return 0;
+    }
+
+    /** First node shared by the paths-to-cloud of a module's current host and the user's new parent. */
+    private int ancestorFor(int hostId, int newParentId) {
+        return determineAncestor(getPathsToCloud(newParentId), getPathsToCloud(hostId));
+    }
+
+    /**
+     * All of this user's placed microservices that could be moved closer: not on the mobile itself,
+     * not already on the new parent, and not pinned by special placement (e.g. storage in the cloud).
+     * Includes modules left behind at earlier handoffs.
+     */
+    private Map<String, Integer> getAllMovableModules(FogDevice mobile, FogDevice newParent, String applicationName) {
+        Map<String, Integer> movable = new HashMap<>();
+        PlacementRequest pr = perClientDevicePrs.get(mobile.getId()).get(applicationName);
+        Application app = applications.get(applicationName);
+        // A module already hosted on a cluster peer of newParent is "settled": close enough that it
+        // is excluded from reconsideration, rather than offered as a candidate again at every handoff.
+        // Without this, the multi-node destination search could keep relocating an already-nearby
+        // module from peer to peer as the user moves within the same cluster (observed empirically as
+        // migration counts and energy nearly doubling between otherwise-identical training runs, with
+        // the "skipped" count collapsing toward zero): a settled module is only reconsidered once the
+        // user leaves the cluster entirely, i.e. once its host is no longer among newParent's peers.
+        java.util.Set<Integer> settledNeighbourhood = new java.util.HashSet<>();
+        settledNeighbourhood.add(newParent.getId());
+        try {
+            for (int peerId : newParent.getClusterMembers()) settledNeighbourhood.add(peerId);
+        } catch (Exception ignored) { /* no cluster data for this node; neighbourhood stays [newParent] */ }
+
+        for (String microservice : pr.getPlacedMicroservices().keySet()) {
+            int host = pr.getPlacedMicroservices().get(microservice);
+            if (host == mobile.getId() || settledNeighbourhood.contains(host)) continue;
+            if (app.getSpecialPlacementInfo().containsKey(microservice)) continue;
+            movable.put(microservice, host);
+        }
+        return movable;
+    }
+
+    private double pathLatency(int deviceID, int commonAncestorID) {
+        double latency = 0.0;
+        while (deviceID != commonAncestorID) {
+            latency += getFogDeviceById(deviceID).getUplinkLatency();
+            deviceID = getFogDeviceById(deviceID).getParentId();
+        }
+        return latency;
     }
 
     private void setNewOrchestratorNode(FogDevice fogDevice, FogDevice newParent) {
